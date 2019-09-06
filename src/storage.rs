@@ -32,4 +32,7 @@ pub trait Storage {
 
     /// Generate the address at which the data will be stored. This address will be stored as a part of the data map.
     fn generate_address(&self, data: &[u8]) -> Vec<u8>;
+
+    /// Delete the data at a particular address.
+    fn delete(&mut self, name: &[u8]) -> Box<dyn Future<Item = (), Error = Self::Error>>;
 }

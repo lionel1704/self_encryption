@@ -42,17 +42,34 @@ impl<'a> Debug for Blob<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct SimpleStorageError;
+pub enum SimpleStorageError {
+    Get,
+    Delete,
+}
+
+impl SimpleStorageError {
+    fn action(&self) -> &str {
+        use SimpleStorageError::*;
+        match *self {
+            Get => "get",
+            Delete => "delete",
+        }
+    }
+}
 
 impl Display for SimpleStorageError {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "Failed to get data from SimpleStorage")
+        write!(
+            formatter,
+            "Failed to {} data from SimpleStorage",
+            self.action()
+        )
     }
 }
 
 impl Error for SimpleStorageError {
     fn description(&self) -> &str {
-        "SimpleStorage::get() error"
+        "SimpleStorage error"
     }
 }
 
@@ -88,7 +105,7 @@ impl Storage for SimpleStorage {
     fn get(&self, name: &[u8]) -> BoxFuture<Vec<u8>, SimpleStorageError> {
         let result = match self.entries.iter().find(|entry| entry.name == name) {
             Some(entry) => Ok(entry.data.clone()),
-            None => Err(SimpleStorageError {}),
+            None => Err(SimpleStorageError::Get),
         };
 
         future::result(result).into_box()
@@ -102,6 +119,18 @@ impl Storage for SimpleStorage {
 
     fn generate_address(&self, data: &[u8]) -> Vec<u8> {
         sha3_256(data).to_vec()
+    }
+
+    fn delete(&mut self, name: &[u8]) -> BoxFuture<(), SimpleStorageError> {
+        let result = match self.entries.iter().position(|entry| entry.name == name) {
+            Some(index) => {
+                let _ = self.entries.remove(index);
+                Ok(())
+            }
+            None => Err(SimpleStorageError::Delete),
+        };
+
+        future::result(result).into_box()
     }
 }
 
